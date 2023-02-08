@@ -39,7 +39,7 @@ namespace YOLOv5WithOpenCVForUnity
                 classNames = readClassNames(classesFilepath);
             }
 
-            input_size = inputSize;
+            input_size = new Size(inputSize.width > 0 ? inputSize.width : 224, inputSize.height > 0 ? inputSize.height : 224);
             this.backend = backend;
             this.target = target;
 
@@ -72,12 +72,10 @@ namespace YOLOv5WithOpenCVForUnity
         protected virtual Mat preprocess(Mat image)
         {
             // Create a 4D blob from a frame.
-            Size inpSize = new Size(input_size.width > 0 ? input_size.width : 224,
-                input_size.height > 0 ? input_size.height : 224);
 
             int c = image.channels();
-            int h = (int)inpSize.height;
-            int w = (int)inpSize.width;
+            int h = (int)input_size.height;
+            int w = (int)input_size.width;
 
             if (input_sizeMat == null)
                 input_sizeMat = new Mat(h, w, CvType.CV_8UC3);// [h, w]
@@ -90,7 +88,7 @@ namespace YOLOv5WithOpenCVForUnity
             Mat image_crop = new Mat(image, new OpenCVRect(0, 0, image.width(), image.height()).intersect(new OpenCVRect(left, top, m, m)));
             Imgproc.resize(image_crop, input_sizeMat, new Size(w, h));
 
-            Mat blob = Dnn.blobFromImage(input_sizeMat, 1.0 / 255.0, inpSize, Scalar.all(0), true, false, CvType.CV_32F); // HWC to NCHW, BGR to RGB
+            Mat blob = Dnn.blobFromImage(input_sizeMat, 1.0 / 255.0, input_size, Scalar.all(0), true, false, CvType.CV_32F); // HWC to NCHW, BGR to RGB
 
             Mat blob_cxhxw = blob.reshape(1, new int[] { c, h, w });// [c, h, w]
 
@@ -143,7 +141,7 @@ namespace YOLOv5WithOpenCVForUnity
 
             Mat results = softmax(output_blob_0);
 
-            return results;// [1, 1000]
+            return results;// [1, num_classes]
         }
 
         protected virtual Mat softmax(Mat src)

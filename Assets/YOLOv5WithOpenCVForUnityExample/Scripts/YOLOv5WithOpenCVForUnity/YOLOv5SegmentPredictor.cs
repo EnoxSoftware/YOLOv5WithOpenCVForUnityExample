@@ -58,7 +58,7 @@ namespace YOLOv5WithOpenCVForUnity
                 num_classes = classNames.Count;
             }
 
-            input_size = inputSize;
+            input_size = new Size(inputSize.width > 0 ? inputSize.width : 640, inputSize.height > 0 ? inputSize.height : 640);
             conf_threshold = Mathf.Clamp01(confThreshold);
             nms_threshold = Mathf.Clamp01(nmsThreshold);
             this.topK = topK;
@@ -107,9 +107,7 @@ namespace YOLOv5WithOpenCVForUnity
             image.copyTo(_maxSizeImg_roi);
 
             // Create a 4D blob from a frame.
-            Size inpSize = new Size(input_size.width > 0 ? input_size.width : 640,
-                input_size.height > 0 ? input_size.height : 640);
-            Mat blob = Dnn.blobFromImage(maxSizeImg, 1.0 / 255.0, inpSize, Scalar.all(0), true, false, CvType.CV_32F); // HWC to NCHW, BGR to RGB
+            Mat blob = Dnn.blobFromImage(maxSizeImg, 1.0 / 255.0, input_size, Scalar.all(0), true, false, CvType.CV_32F); // HWC to NCHW, BGR to RGB
 
             return blob;// [1, 3, h, w]
         }
@@ -229,7 +227,7 @@ namespace YOLOv5WithOpenCVForUnity
             {
                 int idx = (int)indices.get(i, 0)[0];
 
-                float[] classes_scores_arr = new float[80];
+                float[] classes_scores_arr = new float[num_classes];
                 classes_scores_delta.get(idx, 0, classes_scores_arr);
                 // Get the index of max class score.
                 int class_id = classes_scores_arr.Select((val, _idx) => new { V = val, I = _idx }).Aggregate((max, working) => (max.V > working.V) ? max : working).I;
@@ -397,12 +395,7 @@ namespace YOLOv5WithOpenCVForUnity
             if (results.empty() || results.cols() < 6)
                 return;
 
-            StringBuilder sb = null;
-
-            if (print_results)
-                sb = new StringBuilder();
-
-            for (int i = 0; i < results.rows(); ++i)
+            for (int i = results.rows() - 1; i >= 0; --i)
             {
                 float[] box = new float[4];
                 results.get(i, 0, box);
@@ -438,19 +431,40 @@ namespace YOLOv5WithOpenCVForUnity
                 Imgproc.rectangle(image, new Point(left, top - labelSize.height),
                     new Point(left + labelSize.width, top + baseLine[0]), color, Core.FILLED);
                 Imgproc.putText(image, label, new Point(left, top), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, Scalar.all(255), 1, Imgproc.LINE_AA);
-
-                // Print results
-                if (print_results)
-                {
-                    sb.AppendLine(String.Format("-----------object {0}-----------", i + 1));
-                    sb.AppendLine(String.Format("conf: {0:0.0000}", conf[0]));
-                    sb.AppendLine(String.Format("cls: {0:0}", cls[0]));
-                    sb.AppendLine(String.Format("box: {0:0} {1:0} {2:0} {3:0}", box[0], box[1], box[2], box[3]));
-                }
             }
 
+            // Print results
             if (print_results)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                for (int i = 0; i < results.rows(); ++i)
+                {
+                    float[] box = new float[4];
+                    results.get(i, 0, box);
+                    float[] conf = new float[1];
+                    results.get(i, 4, conf);
+                    float[] cls = new float[1];
+                    results.get(i, 5, cls);
+
+                    int classId = (int)cls[0];
+                    string label = String.Format("{0:0}", cls[0]);
+                    if (classNames != null && classNames.Count != 0)
+                    {
+                        if (classId < (int)classNames.Count)
+                        {
+                            label = classNames[classId] + " " + label;
+                        }
+                    }
+
+                    sb.AppendLine(String.Format("-----------object {0}-----------", i + 1));
+                    sb.AppendLine(String.Format("conf: {0:0.0000}", conf[0]));
+                    sb.AppendLine(String.Format("cls: {0:0}", label));
+                    sb.AppendLine(String.Format("box: {0:0} {1:0} {2:0} {3:0}", box[0], box[1], box[2], box[3]));
+                }
+
                 Debug.Log(sb);
+            }
         }
 
         public virtual void visualize_mask(Mat image, Mat det, Mat masks, float alpha = 0.5f, bool isRGB = false)
