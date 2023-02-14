@@ -1,5 +1,6 @@
 # YOLOv5 With OpenCVForUnity Example
 - An example of using OpenCV dnn module with YOLOv5. [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
+- This example can also work for [YOLOv6](https://github.com/meituan/YOLOv6) models, which has the same input/output shapes as the YOLOv5 model.
 
 
 ## Environment
