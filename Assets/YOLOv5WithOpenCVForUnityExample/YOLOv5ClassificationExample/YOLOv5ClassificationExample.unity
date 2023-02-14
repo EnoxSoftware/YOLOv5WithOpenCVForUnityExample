@@ -966,7 +966,7 @@ MonoBehaviour:
   boxWidth: 75
   boxHeight: 30
   padding: {x: 8, y: 5}
-  consoleHeight: 50
+  consoleHeight: 200
 --- !u!114 &1478462782
 MonoBehaviour:
   m_ObjectHideFlags: 0

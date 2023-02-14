@@ -13,6 +13,7 @@ using OpenCVForUnity.ImgcodecsModule;
 using OpenCVForUnity.UnityUtils;
 using OpenCVForUnity.UnityUtils.Helper;
 using YOLOv5WithOpenCVForUnity;
+using System.Text;
 
 namespace YOLOv5WithOpenCVForUnityExample
 {
@@ -185,7 +186,13 @@ namespace YOLOv5WithOpenCVForUnityExample
 
                         if (fpsMonitor != null)
                         {
-                            fpsMonitor.consoleText = "Best match class " + classPredictor.getBestMatchLabel(results);
+                            var sortedData = classPredictor.getSortedData(results, 5);
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 0; i < sortedData.Length; ++i)
+                            {
+                                sb.AppendLine((i + 1) + ". " + classPredictor.getClassLabel(sortedData[i].cls) + ", " + sortedData[i]);
+                            }
+                            fpsMonitor.consoleText = sb.ToString();
                         }
                     }
 
@@ -316,7 +323,13 @@ namespace YOLOv5WithOpenCVForUnityExample
 
                     if (fpsMonitor != null)
                     {
-                        fpsMonitor.consoleText = "Best match class " + classPredictor.getBestMatchLabel(results);
+                        var sortedData = classPredictor.getSortedData(results, 5);
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < sortedData.Length; ++i)
+                        {
+                            sb.AppendLine((i + 1) + ". " + classPredictor.getClassLabel(sortedData[i].cls) + ", " + sortedData[i]);
+                        }
+                        fpsMonitor.consoleText = sb.ToString();
                     }
 
                 }

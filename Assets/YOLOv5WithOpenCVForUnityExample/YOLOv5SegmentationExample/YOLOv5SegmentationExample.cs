@@ -20,6 +20,7 @@ namespace YOLOv5WithOpenCVForUnityExample
     /// YOLOv5 Segmentation Example
     /// Referring to https://github.com/ultralytics/yolov5.
     /// https://github.com/ultralytics/yolov5/blob/master/segment/predict.py
+    /// https://github.com/ultralytics/yolov5/blob/master/utils/general.py
     /// </summary>
     [RequireComponent(typeof(WebCamTextureToMatHelper))]
     public class YOLOv5SegmentationExample : MonoBehaviour
@@ -38,7 +39,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         public float nmsThreshold = 0.45f;
 
         [TooltipAttribute("Maximum detections per image.")]
-        public int topK = 1000;
+        public int topK = 300;
 
         [TooltipAttribute("Enable mask image upsampling.")]
         public bool upsample = true;

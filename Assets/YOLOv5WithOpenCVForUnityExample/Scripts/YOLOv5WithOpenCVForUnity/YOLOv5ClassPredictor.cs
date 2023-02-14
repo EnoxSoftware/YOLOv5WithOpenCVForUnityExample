@@ -3,6 +3,8 @@ using OpenCVForUnity.DnnModule;
 using OpenCVForUnity.ImgprocModule;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 using OpenCVRect = OpenCVForUnity.CoreModule.Rect;
@@ -25,6 +27,8 @@ namespace YOLOv5WithOpenCVForUnity
         List<Scalar> palette;
 
         Mat input_sizeMat;
+
+        Mat getDataMat;
 
         public YOLOv5ClassPredictor(string modelFilepath, string classesFilepath, Size inputSize, int backend = Dnn.DNN_BACKEND_OPENCV, int target = Dnn.DNN_TARGET_CPU)
         {
@@ -171,17 +175,9 @@ namespace YOLOv5WithOpenCVForUnity
             if (print_results)
                 sb = new StringBuilder();
 
-            Core.MinMaxLocResult minmax = Core.minMaxLoc(results);
-            int classId = (int)minmax.maxLoc.x;
-
-            string label = String.Format("{0:0.00}", minmax.maxVal);
-            if (classNames != null && classNames.Count != 0)
-            {
-                if (classId < (int)classNames.Count)
-                {
-                    label = classNames[classId] + " " + label;
-                }
-            }
+            ClassificationData bmData = getBestMatchData(results);
+            int classId = (int)bmData.cls;
+            string label = getClassLabel(bmData.cls) + ", " + String.Format("{0:0.00}", bmData.conf);
 
             Scalar c = palette[classId % palette.Count];
             Scalar color = isRGB ? c : new Scalar(c.val[2], c.val[1], c.val[0], c.val[3]);
@@ -200,31 +196,11 @@ namespace YOLOv5WithOpenCVForUnity
             // Print results
             if (print_results)
             {
-                sb.AppendLine(String.Format("Best match: " + (int)minmax.maxLoc.x + ", " + classNames[(int)minmax.maxLoc.x] + ", " + String.Format("{0:0.00}", minmax.maxVal)));
+                sb.AppendLine(String.Format("Best match: " + getClassLabel(bmData.cls) + ", " + bmData));
             }
 
             if (print_results)
                 Debug.Log(sb);
-        }
-
-        public virtual String getBestMatchLabel(Mat results)
-        {
-            if (results.empty() || results.cols() < classNames.Count)
-                return string.Empty;
-
-            Core.MinMaxLocResult minmax = Core.minMaxLoc(results);
-            int classId = (int)minmax.maxLoc.x;
-            double probability = minmax.maxVal;
-            string className = "";
-            if (classNames != null && classNames.Count != 0)
-            {
-                if (classId < (int)classNames.Count)
-                {
-                    className = classNames[classId];
-                }
-            }
-
-            return classId + "," + className + "," + String.Format("{0:0.00}", probability);
         }
 
         public virtual void dispose()
@@ -236,6 +212,11 @@ namespace YOLOv5WithOpenCVForUnity
                 input_sizeMat.Dispose();
 
             input_sizeMat = null;
+
+            if (getDataMat != null)
+                getDataMat.Dispose();
+
+            getDataMat = null;
         }
 
         protected virtual List<string> readClassNames(string filename)
@@ -265,6 +246,90 @@ namespace YOLOv5WithOpenCVForUnity
             }
 
             return classNames;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public readonly struct ClassificationData
+        {
+            public readonly float cls;
+            public readonly float conf;
+
+            // sizeof(ClassificationData)
+            public const int Size = 2 * sizeof(float);
+
+            public ClassificationData(int cls, float conf)
+            {
+                this.cls = cls;
+                this.conf = conf;
+            }
+
+            public override string ToString()
+            {
+                return "cls:" + cls + " conf:" + conf;
+            }
+        };
+
+        public virtual ClassificationData[] getData(Mat results)
+        {
+            if (results.empty())
+                return new ClassificationData[0];
+
+            int num = results.cols();
+
+            if (getDataMat == null)
+            {
+                getDataMat = new Mat(num, 2, CvType.CV_32FC1);
+                float[] arange = Enumerable.Range(0, num).Select(i => (float)i).ToArray();
+                getDataMat.col(0).put(0, 0, arange);
+            }
+
+            Mat results_numx1 = results.reshape(1, num);
+            results_numx1.copyTo(getDataMat.col(1));
+
+            var dst = new ClassificationData[num];
+            OpenCVForUnity.UtilsModule.MatUtils.copyFromMat(getDataMat, dst);
+
+            return dst;
+        }
+
+        public virtual ClassificationData[] getSortedData(Mat results, int topK = 5)
+        {
+            if (results.empty())
+                return new ClassificationData[0];
+
+            int num = results.cols();
+
+            if (topK < 1 || topK > num) topK = num;
+            var sortedData = getData(results).OrderByDescending(x => x.conf).Take(topK).ToArray();
+
+            return sortedData;
+        }
+
+        public virtual ClassificationData getBestMatchData(Mat results)
+        {
+            if (results.empty())
+                return new ClassificationData();
+
+            Core.MinMaxLocResult minmax = Core.minMaxLoc(results);
+
+            return new ClassificationData((int)minmax.maxLoc.x, (float)minmax.maxVal);
+        }
+
+        public virtual string getClassLabel(float id)
+        {
+            int classId = (int)id;
+            string className = string.Empty;
+            if (classNames != null && classNames.Count != 0)
+            {
+                if (classId >= 0 && classId < (int)classNames.Count)
+                {
+                    className = classNames[classId];
+                }
+            }
+            if (string.IsNullOrEmpty(className))
+                className = classId.ToString();
+
+            return className;
         }
     }
 }

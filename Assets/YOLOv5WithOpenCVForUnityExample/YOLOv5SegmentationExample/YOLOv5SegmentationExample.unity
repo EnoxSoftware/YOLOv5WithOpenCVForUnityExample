@@ -950,7 +950,7 @@ MonoBehaviour:
   classes: coco.names
   confThreshold: 0.25
   nmsThreshold: 0.45
-  topK: 1000
+  topK: 300
   upsample: 1
   inpWidth: 640
   inpHeight: 640

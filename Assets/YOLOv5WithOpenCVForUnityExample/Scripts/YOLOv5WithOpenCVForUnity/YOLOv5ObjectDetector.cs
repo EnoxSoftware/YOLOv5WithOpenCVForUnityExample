@@ -4,6 +4,7 @@ using OpenCVForUnity.ImgprocModule;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 using OpenCVRange = OpenCVForUnity.CoreModule.Range;
@@ -22,6 +23,7 @@ namespace YOLOv5WithOpenCVForUnity
         int target;
 
         int num_classes = 80;
+        bool class_agnostic = false;// Non-use of multi-class NMS
 
         Net object_detection_net;
         List<string> classNames;
@@ -30,13 +32,17 @@ namespace YOLOv5WithOpenCVForUnity
 
         Mat maxSizeImg;
 
+        Mat pickup_blob_numx6;
         Mat boxesMat;
+
         Mat boxes_m_c4;
         Mat confidences_m;
+        Mat class_ids_m;
         MatOfRect2d boxes;
         MatOfFloat confidences;
+        MatOfInt class_ids;
 
-        public YOLOv5ObjectDetector(string modelFilepath, string classesFilepath, Size inputSize, float confThreshold = 0.25f, float nmsThreshold = 0.45f, int topK = 1000, int backend = Dnn.DNN_BACKEND_OPENCV, int target = Dnn.DNN_TARGET_CPU)
+        public YOLOv5ObjectDetector(string modelFilepath, string classesFilepath, Size inputSize, float confThreshold = 0.25f, float nmsThreshold = 0.45f, int topK = 300, int backend = Dnn.DNN_BACKEND_OPENCV, int target = Dnn.DNN_TARGET_CPU)
         {
             // initialize
             if (!string.IsNullOrEmpty(modelFilepath))
@@ -166,65 +172,100 @@ namespace YOLOv5WithOpenCVForUnity
             Mat confidence = output_blob_numx85.colRange(new OpenCVRange(4, 5));
             Mat classes_scores_delta = output_blob_numx85.colRange(new OpenCVRange(5, 5 + num_classes));
 
+            // pre-NMS
+            // Pick up rows to process by conf_threshold value and calculate scores and class_ids.
+            if (pickup_blob_numx6 == null)
+                pickup_blob_numx6 = new Mat(300, 6, CvType.CV_32FC1, new Scalar(0));
+
+            Imgproc.rectangle(pickup_blob_numx6, new OpenCVRect(4, 0, 1, pickup_blob_numx6.rows()), Scalar.all(0), -1);
+
+            float[] conf_arr = new float[num];
+            confidence.get(0, 0, conf_arr);
+            int ind = 0;
+            for (int i = 0; i < num; ++i)
+            {
+                float conf = conf_arr[i];
+                if (conf > conf_threshold)
+                {
+                    if (ind > pickup_blob_numx6.rows())
+                    {
+                        Mat _conf_blob_numx6 = new Mat(pickup_blob_numx6.rows() * 2, pickup_blob_numx6.cols(), pickup_blob_numx6.type(), new Scalar(0));
+                        pickup_blob_numx6.copyTo(_conf_blob_numx6.rowRange(0, pickup_blob_numx6.rows()));
+                        pickup_blob_numx6 = _conf_blob_numx6;
+                    }
+
+                    float[] box_arr = new float[4];
+                    box_delta.get(i, 0, box_arr);
+
+                    Mat cls_scores = classes_scores_delta.row(i);
+                    Core.MinMaxLocResult minmax = Core.minMaxLoc(cls_scores);
+
+                    pickup_blob_numx6.put(ind, 0, new float[] { box_arr[0], box_arr[1], box_arr[2], box_arr[3], ((float)minmax.maxVal * conf), (float)minmax.maxLoc.x });
+                    ind++;
+                }
+            }
+
+            int num_pickup = pickup_blob_numx6.rows();
+            Mat pickup_box_delta = pickup_blob_numx6.colRange(new OpenCVRange(0, 4));
+            Mat pickup_confidence = pickup_blob_numx6.colRange(new OpenCVRange(4, 5));
+
             // Convert boxes from [cx, cy, w, h] to [x, y, w, h] where Rect2d data style.
-            if (boxesMat == null)
-                boxesMat = new Mat(num, 4, CvType.CV_32FC1);
-            Mat cxy_delta = box_delta.colRange(new OpenCVRange(0, 2));
-            Mat wh_delta = box_delta.colRange(new OpenCVRange(2, 4));
+            if (boxesMat == null || boxesMat.rows() != num_pickup)
+                boxesMat = new Mat(num_pickup, 4, CvType.CV_32FC1);
+            Mat cxy_delta = pickup_box_delta.colRange(new OpenCVRange(0, 2));
+            Mat wh_delta = pickup_box_delta.colRange(new OpenCVRange(2, 4));
             Mat xy1 = boxesMat.colRange(new OpenCVRange(0, 2));
             Mat xy2 = boxesMat.colRange(new OpenCVRange(2, 4));
             wh_delta.copyTo(xy2);
             Core.divide(wh_delta, new Scalar(2.0), wh_delta);
             Core.subtract(cxy_delta, wh_delta, xy1);
 
-            // NMS
-            if (boxes_m_c4 == null)
-                boxes_m_c4 = new Mat(num, 1, CvType.CV_64FC4);
-            if (confidences_m == null)
-                confidences_m = new Mat(num, 1, CvType.CV_32FC1);
 
-            if (boxes == null)
+            if (boxes_m_c4 == null || boxes_m_c4.rows() != num_pickup)
+                boxes_m_c4 = new Mat(num_pickup, 1, CvType.CV_64FC4);
+            if (confidences_m == null || confidences_m.rows() != num_pickup)
+                confidences_m = new Mat(num_pickup, 1, CvType.CV_32FC1);
+
+            if (boxes == null || boxes.rows() != num_pickup)
                 boxes = new MatOfRect2d(boxes_m_c4);
-            if (confidences == null)
+            if (confidences == null || confidences.rows() != num_pickup)
                 confidences = new MatOfFloat(confidences_m);
 
-            Mat boxes_m_c1 = boxes_m_c4.reshape(1, num);
+
+            // non-maximum suppression
+            Mat boxes_m_c1 = boxes_m_c4.reshape(1, num_pickup);
             boxesMat.convertTo(boxes_m_c1, CvType.CV_64F);
-            confidence.copyTo(confidences_m);
+            pickup_confidence.copyTo(confidences_m);
+
             MatOfInt indices = new MatOfInt();
-            Dnn.NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, indices, 1f, topK);
 
-            int indicesNum = (int)indices.total();
-            List<int> selectedIndices = new List<int>(indicesNum);
-            List<int> selectedClassIds = new List<int>(indicesNum);
-            List<float> selectedConfidences = new List<float>(indicesNum);
+            if (class_agnostic)
+            {
+                // NMS
+                Dnn.NMSBoxes(boxes, confidences, conf_threshold, nms_threshold, indices, 1f, topK);
+            }
+            else
+            {
+                Mat pickup_class_ids = pickup_blob_numx6.colRange(new OpenCVRange(5, 6));
 
-            for (int i = 0; i < indicesNum; ++i)
+                if (class_ids_m == null || class_ids_m.rows() != num_pickup)
+                    class_ids_m = new Mat(num_pickup, 1, CvType.CV_32SC1);
+                if (class_ids == null || class_ids.rows() != num_pickup)
+                    class_ids = new MatOfInt(class_ids_m);
+
+                pickup_class_ids.convertTo(class_ids_m, CvType.CV_32S);
+
+                // multi-class NMS
+                Dnn.NMSBoxesBatched(boxes, confidences, class_ids, conf_threshold, nms_threshold, indices, 1f, topK);
+            }
+
+            Mat results = new Mat(indices.rows(), 6, CvType.CV_32FC1);
+
+            for (int i = 0; i < indices.rows(); ++i)
             {
                 int idx = (int)indices.get(i, 0)[0];
 
-                float[] classes_scores_arr = new float[num_classes];
-                classes_scores_delta.get(idx, 0, classes_scores_arr);
-                // Get the index of max class score.
-                int class_id = classes_scores_arr.Select((val, _idx) => new { V = val, I = _idx }).Aggregate((max, working) => (max.V > working.V) ? max : working).I;
-
-                float[] confidence_arr = new float[1];
-                confidences.get(idx, 0, confidence_arr);
-
-                float newConfidence = classes_scores_arr[class_id] * confidence_arr[0];
-                if (newConfidence > conf_threshold)
-                {
-                    selectedIndices.Add(idx);
-                    selectedClassIds.Add(class_id);
-                    selectedConfidences.Add(newConfidence);
-                }
-            }
-
-            Mat results = new Mat(selectedIndices.Count, 6, CvType.CV_32FC1);
-
-            for (int i = 0; i < selectedIndices.Count; ++i)
-            {
-                int idx = selectedIndices[i];
+                pickup_blob_numx6.row(idx).copyTo(results.row(i));
 
                 float[] bbox_arr = new float[4];
                 boxesMat.get(idx, 0, bbox_arr);
@@ -232,7 +273,7 @@ namespace YOLOv5WithOpenCVForUnity
                 float y = bbox_arr[1];
                 float w = bbox_arr[2];
                 float h = bbox_arr[3];
-                results.put(i, 0, new float[] { x, y, x + w, y + h, selectedConfidences[i], selectedClassIds[i] });
+                results.put(i, 0, new float[] { x, y, x + w, y + h });
             }
 
             indices.Dispose();
@@ -243,6 +284,7 @@ namespace YOLOv5WithOpenCVForUnity
             //   [xyxy, conf, cls]
             // ]
             return results;
+
         }
 
         public virtual void visualize(Mat image, Mat results, bool print_results = false, bool isRGB = false)
@@ -253,34 +295,23 @@ namespace YOLOv5WithOpenCVForUnity
             if (results.empty() || results.cols() < 6)
                 return;
 
-            for (int i = results.rows() - 1; i >= 0; --i)
-            {
-                float[] box = new float[4];
-                results.get(i, 0, box);
-                float[] conf = new float[1];
-                results.get(i, 4, conf);
-                float[] cls = new float[1];
-                results.get(i, 5, cls);
+            DetectionData[] data = getData(results);
 
-                float left = box[0];
-                float top = box[1];
-                float right = box[2];
-                float bottom = box[3];
-                int classId = (int)cls[0];
+            foreach (var d in data.Reverse())
+            {
+                float left = d.x1;
+                float top = d.y1;
+                float right = d.x2;
+                float bottom = d.y2;
+                float conf = d.conf;
+                int classId = (int)d.cls;
 
                 Scalar c = palette[classId % palette.Count];
                 Scalar color = isRGB ? c : new Scalar(c.val[2], c.val[1], c.val[0], c.val[3]);
 
                 Imgproc.rectangle(image, new Point(left, top), new Point(right, bottom), color, 2);
 
-                string label = String.Format("{0:0.00}", conf[0]);
-                if (classNames != null && classNames.Count != 0)
-                {
-                    if (classId < (int)classNames.Count)
-                    {
-                        label = classNames[classId] + " " + label;
-                    }
-                }
+                string label = getClassLabel(classId) + ", " + String.Format("{0:0.00}", conf);
 
                 int[] baseLine = new int[1];
                 Size labelSize = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, 1, baseLine);
@@ -296,29 +327,15 @@ namespace YOLOv5WithOpenCVForUnity
             {
                 StringBuilder sb = new StringBuilder();
 
-                for (int i = 0; i < results.rows(); ++i)
+                for (int i = 0; i < data.Length; ++i)
                 {
-                    float[] box = new float[4];
-                    results.get(i, 0, box);
-                    float[] conf = new float[1];
-                    results.get(i, 4, conf);
-                    float[] cls = new float[1];
-                    results.get(i, 5, cls);
-
-                    int classId = (int)cls[0];
-                    string label = String.Format("{0:0}", cls[0]);
-                    if (classNames != null && classNames.Count != 0)
-                    {
-                        if (classId < (int)classNames.Count)
-                        {
-                            label = classNames[classId] + " " + label;
-                        }
-                    }
+                    var d = data[i];
+                    string label = getClassLabel(d.cls) + ", " + String.Format("{0:0}", d.conf);
 
                     sb.AppendLine(String.Format("-----------object {0}-----------", i + 1));
-                    sb.AppendLine(String.Format("conf: {0:0.0000}", conf[0]));
+                    sb.AppendLine(String.Format("conf: {0:0.0000}", d.conf));
                     sb.AppendLine(String.Format("cls: {0:0}", label));
-                    sb.AppendLine(String.Format("box: {0:0} {1:0} {2:0} {3:0}", box[0], box[1], box[2], box[3]));
+                    sb.AppendLine(String.Format("box: {0:0} {1:0} {2:0} {3:0}", d.x1, d.y1, d.x2, d.y2));
                 }
 
                 Debug.Log(sb);
@@ -335,24 +352,33 @@ namespace YOLOv5WithOpenCVForUnity
 
             maxSizeImg = null;
 
+            if (pickup_blob_numx6 != null)
+                pickup_blob_numx6.Dispose();
             if (boxesMat != null)
                 boxesMat.Dispose();
 
+            pickup_blob_numx6 = null;
             boxesMat = null;
 
             if (boxes_m_c4 != null)
                 boxes_m_c4.Dispose();
             if (confidences_m != null)
                 confidences_m.Dispose();
+            if (class_ids_m != null)
+                class_ids_m.Dispose();
             if (boxes != null)
                 boxes.Dispose();
             if (confidences != null)
                 confidences.Dispose();
+            if (class_ids != null)
+                class_ids.Dispose();
 
             boxes_m_c4 = null;
             confidences_m = null;
+            class_ids_m = null;
             boxes = null;
             confidences = null;
+            class_ids = null;
         }
 
         protected virtual List<string> readClassNames(string filename)
@@ -382,6 +408,63 @@ namespace YOLOv5WithOpenCVForUnity
             }
 
             return classNames;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public readonly struct DetectionData
+        {
+            public readonly float x1;
+            public readonly float y1;
+            public readonly float x2;
+            public readonly float y2;
+            public readonly float conf;
+            public readonly float cls;
+
+            // sizeof(ClassificationData)
+            public const int Size = 6 * sizeof(float);
+
+            public DetectionData(int x1, int y1, int x2, int y2, float conf, int cls)
+            {
+                this.x1 = x1;
+                this.y1 = y1;
+                this.x2 = x2;
+                this.y2 = y2;
+                this.conf = conf;
+                this.cls = cls;
+            }
+
+            public override string ToString()
+            {
+                return "x1:" + x1 + " y1:" + y1 + "x2:" + x2 + " y2:" + y2 + " conf:" + conf + "  cls:" + cls;
+            }
+        };
+
+        public virtual DetectionData[] getData(Mat results)
+        {
+            if (results.empty())
+                return new DetectionData[0];
+
+            var dst = new DetectionData[results.rows()];
+            OpenCVForUnity.UtilsModule.MatUtils.copyFromMat(results, dst);
+
+            return dst;
+        }
+
+        public virtual string getClassLabel(float id)
+        {
+            int classId = (int)id;
+            string className = string.Empty;
+            if (classNames != null && classNames.Count != 0)
+            {
+                if (classId >= 0 && classId < (int)classNames.Count)
+                {
+                    className = classNames[classId];
+                }
+            }
+            if (string.IsNullOrEmpty(className))
+                className = classId.ToString();
+
+            return className;
         }
     }
 }
