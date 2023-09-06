@@ -104,11 +104,13 @@ namespace YOLOv5WithOpenCVForUnity
             int max = Mathf.Max(image.cols(), image.rows());
 
             if (maxSizeImg == null)
-                maxSizeImg = new Mat(max, max, image.type());
+                maxSizeImg = new Mat(max, max, image.type(), Scalar.all(114));
             if (maxSizeImg.width() != max || maxSizeImg.height() != max)
+            {
                 maxSizeImg.create(max, max, image.type());
+                Imgproc.rectangle(maxSizeImg, new OpenCVRect(0, 0, maxSizeImg.width(), maxSizeImg.height()), Scalar.all(114), -1);
+            }
 
-            Imgproc.rectangle(maxSizeImg, new OpenCVRect(0, 0, maxSizeImg.width(), maxSizeImg.height()), Scalar.all(114), -1);
             Mat _maxSizeImg_roi = new Mat(maxSizeImg, new OpenCVRect((max - image.cols()) / 2, (max - image.rows()) / 2, image.cols(), image.rows()));
             image.copyTo(_maxSizeImg_roi);
 
