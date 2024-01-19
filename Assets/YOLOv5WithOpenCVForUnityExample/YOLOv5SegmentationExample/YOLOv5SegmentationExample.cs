@@ -151,7 +151,7 @@ namespace YOLOv5WithOpenCVForUnityExample
 
             if (string.IsNullOrEmpty(model_filepath) || string.IsNullOrEmpty(classes_filepath))
             {
-                Debug.LogError("model: " + model + " or " + "classes: " + classes + " is not loaded.");
+                Debug.LogError("model: " + model + " is not loaded.");
             }
             else
             {

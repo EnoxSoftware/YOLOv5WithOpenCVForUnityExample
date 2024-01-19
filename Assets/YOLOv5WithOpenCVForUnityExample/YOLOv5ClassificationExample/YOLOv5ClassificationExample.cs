@@ -137,9 +137,9 @@ namespace YOLOv5WithOpenCVForUnityExample
             //if true, The error log of the Native side OpenCV will be displayed on the Unity Editor Console.
             Utils.setDebugMode(true);
 
-            if (string.IsNullOrEmpty(model_filepath) || string.IsNullOrEmpty(classes_filepath))
+            if (string.IsNullOrEmpty(model_filepath))
             {
-                Debug.LogError("model: " + model + " or " + "classes: " + classes + " is not loaded.");
+                Debug.LogError("model: " + model + " is not loaded.");
             }
             else
             {

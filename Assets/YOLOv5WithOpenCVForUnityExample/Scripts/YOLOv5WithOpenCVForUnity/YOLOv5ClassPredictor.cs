@@ -75,8 +75,9 @@ namespace YOLOv5WithOpenCVForUnity
 
         protected virtual Mat preprocess(Mat image)
         {
-            // Create a 4D blob from a frame.
+            // https://github.com/ultralytics/yolov5/blob/703d37ef7991387d4bf0ebc011abf8d8f2233e1d/utils/augmentations.py#L343
 
+            // Resizes and crops the center of the image using a letterbox method.
             int c = image.channels();
             int h = (int)input_size.height;
             int w = (int)input_size.width;
@@ -167,7 +168,7 @@ namespace YOLOv5WithOpenCVForUnity
             if (image.IsDisposed)
                 return;
 
-            if (results.empty() || results.cols() < classNames.Count)
+            if (results.empty())
                 return;
 
             StringBuilder sb = null;
