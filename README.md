@@ -7,7 +7,7 @@
 - Windows / Mac / Linux / WebGL / Android / iOS
 - Unity >= 2020.3.48f1+
 - Scripting backend MONO / IL2CPP
-- [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.5.8+
+- [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.5.9+
 
 
 ## Setup
@@ -37,4 +37,5 @@
 
 ## Tutorials
 1. [How to Train YOLO v5 on a Custom Dataset](https://www.youtube.com/watch?v=MdF6x6ZmLAY)
+2. [Example of custom training for dice roll detection](https://qiita.com/DiNOV-Tokyo/items/1333ff4a6d9b4b5b79c0)
 
