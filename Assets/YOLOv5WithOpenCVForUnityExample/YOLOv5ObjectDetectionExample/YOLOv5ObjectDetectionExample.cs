@@ -13,6 +13,8 @@ using OpenCVForUnity.ImgcodecsModule;
 using OpenCVForUnity.UnityUtils;
 using OpenCVForUnity.UnityUtils.Helper;
 using YOLOv5WithOpenCVForUnity;
+using System.Threading;
+using UnityEngine.UI;
 
 namespace YOLOv5WithOpenCVForUnityExample
 {
@@ -22,9 +24,16 @@ namespace YOLOv5WithOpenCVForUnityExample
     /// https://github.com/ultralytics/yolov5/blob/master/detect.py
     /// https://github.com/ultralytics/yolov5/blob/master/utils/general.py
     /// </summary>
-    [RequireComponent(typeof(WebCamTextureToMatHelper))]
+    [RequireComponent(typeof(MultiSource2MatHelper))]
     public class YOLOv5ObjectDetectionExample : MonoBehaviour
     {
+        [Header("Output")]
+        /// <summary>
+        /// The RawImage for previewing the result.
+        /// </summary>
+        public RawImage resultPreview;
+
+        [Space(10)]
 
         [TooltipAttribute("Path to a binary file of model contains trained weights.")]
         public string model = "yolov5n.onnx";
@@ -47,20 +56,15 @@ namespace YOLOv5WithOpenCVForUnityExample
         [TooltipAttribute("Preprocess input image by resizing to a specific height.")]
         public int inpHeight = 640;
 
-        [Header("TEST")]
-
-        [TooltipAttribute("Path to test input image.")]
-        public string testInputImage;
-
         /// <summary>
         /// The texture.
         /// </summary>
         protected Texture2D texture;
 
         /// <summary>
-        /// The webcam texture to mat helper.
+        /// The multi source to mat helper.
         /// </summary>
-        protected WebCamTextureToMatHelper webCamTextureToMatHelper;
+        protected MultiSource2MatHelper multiSource2MatHelper;
 
         /// <summary>
         /// The bgr mat.
@@ -80,65 +84,33 @@ namespace YOLOv5WithOpenCVForUnityExample
         protected string classes_filepath;
         protected string model_filepath;
 
-#if UNITY_WEBGL
-        protected IEnumerator getFilePath_Coroutine;
-#endif
+        /// <summary>
+        /// The CancellationTokenSource.
+        /// </summary>
+        CancellationTokenSource cts = new CancellationTokenSource();
 
         // Use this for initialization
-        protected virtual void Start()
+        async void Start()
         {
             fpsMonitor = GetComponent<FpsMonitor>();
 
-            webCamTextureToMatHelper = gameObject.GetComponent<WebCamTextureToMatHelper>();
+            multiSource2MatHelper = gameObject.GetComponent<MultiSource2MatHelper>();
+            multiSource2MatHelper.outputColorFormat = Source2MatHelperColorFormat.RGBA;
 
-#if UNITY_WEBGL
-            getFilePath_Coroutine = GetFilePath();
-            StartCoroutine(getFilePath_Coroutine);
-#else
+            // Asynchronously retrieves the readable file path from the StreamingAssets directory.
+            if (fpsMonitor != null)
+                fpsMonitor.consoleText = "Preparing file access...";
+
             if (!string.IsNullOrEmpty(classes))
-            {
-                classes_filepath = Utils.getFilePath("YOLOv5WithOpenCVForUnityExample/" + classes);
-                if (string.IsNullOrEmpty(classes_filepath)) Debug.Log("The file:" + classes + " did not exist in the folder “Assets/StreamingAssets/YOLOv5WithOpenCVForUnityExample”.");
-            }
+                classes_filepath = await Utils.getFilePathAsyncTask("YOLOv5WithOpenCVForUnityExample/" + classes, cancellationToken: cts.Token);
             if (!string.IsNullOrEmpty(model))
-            {
-                model_filepath = Utils.getFilePath("YOLOv5WithOpenCVForUnityExample/" + model);
-                if (string.IsNullOrEmpty(model_filepath)) Debug.Log("The file:" + model + " did not exist in the folder “Assets/StreamingAssets/YOLOv5WithOpenCVForUnityExample”.");
-            }
-            Run();
-#endif
-        }
+                model_filepath = await Utils.getFilePathAsyncTask("YOLOv5WithOpenCVForUnityExample/" + model, cancellationToken: cts.Token);
 
-#if UNITY_WEBGL
-        protected virtual IEnumerator GetFilePath()
-        {
-            if (!string.IsNullOrEmpty(classes))
-            {
-                var getFilePathAsync_0_Coroutine = Utils.getFilePathAsync("YOLOv5WithOpenCVForUnityExample/" + classes, (result) =>
-                {
-                    classes_filepath = result;
-                });
-                yield return getFilePathAsync_0_Coroutine;
-
-                if (string.IsNullOrEmpty(classes_filepath)) Debug.Log("The file:" + classes + " did not exist in the folder “Assets/StreamingAssets/YOLOv5WithOpenCVForUnityExample”.");
-            }
-
-            if (!string.IsNullOrEmpty(model))
-            {
-                var getFilePathAsync_1_Coroutine = Utils.getFilePathAsync("YOLOv5WithOpenCVForUnityExample/" + model, (result) =>
-                {
-                    model_filepath = result;
-                });
-                yield return getFilePathAsync_1_Coroutine;
-
-                if (string.IsNullOrEmpty(model_filepath)) Debug.Log("The file:" + model + " did not exist in the folder “Assets/StreamingAssets/YOLOv5WithOpenCVForUnityExample”.");
-            }
-
-            getFilePath_Coroutine = null;
+            if (fpsMonitor != null)
+                fpsMonitor.consoleText = "";
 
             Run();
         }
-#endif
 
         // Use this for initialization
         protected virtual void Run()
@@ -155,120 +127,40 @@ namespace YOLOv5WithOpenCVForUnityExample
                 objectDetector = new YOLOv5ObjectDetector(model_filepath, classes_filepath, new Size(inpWidth, inpHeight), confThreshold, nmsThreshold, topK);
             }
 
-
-            if (string.IsNullOrEmpty(testInputImage))
-            {
-#if UNITY_ANDROID && !UNITY_EDITOR
-                // Avoids the front camera low light issue that occurs in only some Android devices (e.g. Google Pixel, Pixel2).
-                webCamTextureToMatHelper.avoidAndroidFrontCameraLowLightIssue = true;
-#endif
-                webCamTextureToMatHelper.Initialize();
-            }
-            else
-            {
-                /////////////////////
-                // TEST
-
-                var getFilePathAsync_0_Coroutine = Utils.getFilePathAsync("YOLOv5WithOpenCVForUnityExample/" + testInputImage, (result) =>
-                {
-                    string test_input_image_filepath = result;
-                    if (string.IsNullOrEmpty(test_input_image_filepath)) Debug.Log("The file:" + testInputImage + " did not exist in the folder “Assets/StreamingAssets/YOLOv5WithOpenCVForUnityExample”.");
-
-                    Mat img = Imgcodecs.imread(test_input_image_filepath);
-                    if (img.empty())
-                    {
-                        img = new Mat(424, 640, CvType.CV_8UC3, new Scalar(0, 0, 0));
-                        Imgproc.putText(img, testInputImage + " is not loaded.", new Point(5, img.rows() - 30), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255, 255, 255, 255), 2, Imgproc.LINE_AA, false);
-                        Imgproc.putText(img, "Please read console message.", new Point(5, img.rows() - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255, 255, 255, 255), 2, Imgproc.LINE_AA, false);
-                    }
-                    else
-                    {
-                        TickMeter tm = new TickMeter();
-                        tm.start();
-
-                        Mat results = objectDetector.infer(img);
-
-                        tm.stop();
-                        Debug.Log("YOLOv5ObjectDetector Inference time (preprocess + infer + postprocess), ms: " + tm.getTimeMilli());
-
-                        objectDetector.visualize(img, results, true, false);
-                    }
-
-                    gameObject.transform.localScale = new Vector3(img.width(), img.height(), 1);
-                    float imageWidth = img.width();
-                    float imageHeight = img.height();
-                    float widthScale = (float)Screen.width / imageWidth;
-                    float heightScale = (float)Screen.height / imageHeight;
-                    if (widthScale < heightScale)
-                    {
-                        Camera.main.orthographicSize = (imageWidth * (float)Screen.height / (float)Screen.width) / 2;
-                    }
-                    else
-                    {
-                        Camera.main.orthographicSize = imageHeight / 2;
-                    }
-
-                    Imgproc.cvtColor(img, img, Imgproc.COLOR_BGR2RGB);
-                    Texture2D texture = new Texture2D(img.cols(), img.rows(), TextureFormat.RGB24, false);
-                    Utils.matToTexture2D(img, texture);
-                    gameObject.GetComponent<Renderer>().material.mainTexture = texture;
-
-                });
-                StartCoroutine(getFilePathAsync_0_Coroutine);
-
-                /////////////////////
-            }
+            multiSource2MatHelper.Initialize();
         }
 
         /// <summary>
-        /// Raises the webcam texture to mat helper initialized event.
+        /// Raises the source to mat helper initialized event.
         /// </summary>
-        public virtual void OnWebCamTextureToMatHelperInitialized()
+        public virtual void OnSourceToMatHelperInitialized()
         {
-            Debug.Log("OnWebCamTextureToMatHelperInitialized");
+            Debug.Log("OnSourceToMatHelperInitialized");
 
-            Mat webCamTextureMat = webCamTextureToMatHelper.GetMat();
+            Mat rgbaMat = multiSource2MatHelper.GetMat();
 
+            texture = new Texture2D(rgbaMat.cols(), rgbaMat.rows(), TextureFormat.RGBA32, false);
 
-            texture = new Texture2D(webCamTextureMat.cols(), webCamTextureMat.rows(), TextureFormat.RGBA32, false);
+            resultPreview.texture = texture;
+            resultPreview.GetComponent<AspectRatioFitter>().aspectRatio = (float)texture.width / texture.height;
 
-            gameObject.GetComponent<Renderer>().material.mainTexture = texture;
-
-            gameObject.transform.localScale = new Vector3(webCamTextureMat.cols(), webCamTextureMat.rows(), 1);
-            Debug.Log("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
 
             if (fpsMonitor != null)
             {
-                fpsMonitor.Add("width", webCamTextureMat.width().ToString());
-                fpsMonitor.Add("height", webCamTextureMat.height().ToString());
+                fpsMonitor.Add("width", rgbaMat.width().ToString());
+                fpsMonitor.Add("height", rgbaMat.height().ToString());
                 fpsMonitor.Add("orientation", Screen.orientation.ToString());
             }
 
-
-            float width = webCamTextureMat.width();
-            float height = webCamTextureMat.height();
-
-            float widthScale = (float)Screen.width / width;
-            float heightScale = (float)Screen.height / height;
-            if (widthScale < heightScale)
-            {
-                Camera.main.orthographicSize = (width * (float)Screen.height / (float)Screen.width) / 2;
-            }
-            else
-            {
-                Camera.main.orthographicSize = height / 2;
-            }
-
-
-            bgrMat = new Mat(webCamTextureMat.rows(), webCamTextureMat.cols(), CvType.CV_8UC3);
+            bgrMat = new Mat(rgbaMat.rows(), rgbaMat.cols(), CvType.CV_8UC3);
         }
 
         /// <summary>
-        /// Raises the webcam texture to mat helper disposed event.
+        /// Raises the source to mat helper disposed event.
         /// </summary>
-        public virtual void OnWebCamTextureToMatHelperDisposed()
+        public virtual void OnSourceToMatHelperDisposed()
         {
-            Debug.Log("OnWebCamTextureToMatHelperDisposed");
+            Debug.Log("OnSourceToMatHelperDisposed");
 
             if (bgrMat != null)
                 bgrMat.Dispose();
@@ -281,21 +173,27 @@ namespace YOLOv5WithOpenCVForUnityExample
         }
 
         /// <summary>
-        /// Raises the webcam texture to mat helper error occurred event.
+        /// Raises the source to mat helper error occurred event.
         /// </summary>
         /// <param name="errorCode">Error code.</param>
-        public virtual void OnWebCamTextureToMatHelperErrorOccurred(WebCamTextureToMatHelper.ErrorCode errorCode)
+        /// <param name="message">Message.</param>
+        public void OnSourceToMatHelperErrorOccurred(Source2MatHelperErrorCode errorCode, string message)
         {
-            Debug.Log("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
+            Debug.Log("OnSourceToMatHelperErrorOccurred " + errorCode + ":" + message);
+
+            if (fpsMonitor != null)
+            {
+                fpsMonitor.consoleText = "ErrorCode: " + errorCode + ":" + message;
+            }
         }
 
         // Update is called once per frame
         protected virtual void Update()
         {
-            if (webCamTextureToMatHelper.IsPlaying() && webCamTextureToMatHelper.DidUpdateThisFrame())
+            if (multiSource2MatHelper.IsPlaying() && multiSource2MatHelper.DidUpdateThisFrame())
             {
 
-                Mat rgbaMat = webCamTextureToMatHelper.GetMat();
+                Mat rgbaMat = multiSource2MatHelper.GetMat();
 
                 if (objectDetector == null)
                 {
@@ -330,20 +228,15 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         protected virtual void OnDestroy()
         {
-            webCamTextureToMatHelper.Dispose();
+            multiSource2MatHelper.Dispose();
 
             if (objectDetector != null)
                 objectDetector.dispose();
 
             Utils.setDebugMode(false);
 
-#if UNITY_WEBGL
-            if (getFilePath_Coroutine != null)
-            {
-                StopCoroutine(getFilePath_Coroutine);
-                ((IDisposable)getFilePath_Coroutine).Dispose();
-            }
-#endif
+            if (cts != null)
+                cts.Dispose();
         }
 
         /// <summary>
@@ -359,7 +252,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         public virtual void OnPlayButtonClick()
         {
-            webCamTextureToMatHelper.Play();
+            multiSource2MatHelper.Play();
         }
 
         /// <summary>
@@ -367,7 +260,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         public virtual void OnPauseButtonClick()
         {
-            webCamTextureToMatHelper.Pause();
+            multiSource2MatHelper.Pause();
         }
 
         /// <summary>
@@ -375,7 +268,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         public virtual void OnStopButtonClick()
         {
-            webCamTextureToMatHelper.Stop();
+            multiSource2MatHelper.Stop();
         }
 
         /// <summary>
@@ -383,7 +276,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         public virtual void OnChangeCameraButtonClick()
         {
-            webCamTextureToMatHelper.requestedIsFrontFacing = !webCamTextureToMatHelper.requestedIsFrontFacing;
+            multiSource2MatHelper.requestedIsFrontFacing = !multiSource2MatHelper.requestedIsFrontFacing;
         }
     }
 }
