@@ -13,8 +13,12 @@ using OpenCVRect = OpenCVForUnity.CoreModule.Rect;
 
 namespace YOLOv5WithOpenCVForUnity
 {
-
-    public class YOLOv5SegmentPredictor
+    /// <summary>
+    /// Referring to https://github.com/ultralytics/yolov5.
+    /// https://github.com/ultralytics/yolov5/blob/master/segment/predict.py
+    /// https://github.com/ultralytics/yolov5/blob/master/utils/general.py
+    /// </summary>
+    public class YOLOv5SegmentPredictor : IDisposable
     {
         Size input_size;
         float conf_threshold;
@@ -61,7 +65,7 @@ namespace YOLOv5WithOpenCVForUnity
 
             if (!string.IsNullOrEmpty(classesFilepath))
             {
-                classNames = readClassNames(classesFilepath);
+                classNames = ReadClassNames(classesFilepath);
                 num_classes = classNames.Count;
             }
 
@@ -99,7 +103,7 @@ namespace YOLOv5WithOpenCVForUnity
             palette.Add(new Scalar(255, 55, 199, 255));
         }
 
-        protected virtual Mat preprocess(Mat image)
+        protected virtual Mat PreProcess(Mat image)
         {
             // https://github.com/ultralytics/yolov5/blob/703d37ef7991387d4bf0ebc011abf8d8f2233e1d/utils/augmentations.py#L111
 
@@ -125,7 +129,7 @@ namespace YOLOv5WithOpenCVForUnity
             return blob;// [1, 3, h, w]
         }
 
-        public virtual List<Mat> infer(Mat image)
+        public virtual List<Mat> Infer(Mat image)
         {
             // cheack
             if (image.channels() != 3)
@@ -135,7 +139,7 @@ namespace YOLOv5WithOpenCVForUnity
             }
 
             // Preprocess
-            Mat input_blob = preprocess(image);
+            Mat input_blob = PreProcess(image);
 
             // Forward
             segmentation_net.setInput(input_blob);
@@ -144,7 +148,7 @@ namespace YOLOv5WithOpenCVForUnity
             segmentation_net.forward(output_blob, segmentation_net.getUnconnectedOutLayersNames());
 
             // Postprocess
-            Mat det = postprocess(output_blob[0], image.size());
+            Mat det = PostProcess(output_blob[0], image.size());
 
             // process_mask
             Mat proto = output_blob[1];
@@ -189,7 +193,7 @@ namespace YOLOv5WithOpenCVForUnity
             return results;
         }
 
-        protected virtual Mat postprocess(Mat output_blob, Size original_shape)
+        protected virtual Mat PostProcess(Mat output_blob, Size original_shape)
         {
             Mat output_blob_0 = output_blob;
 
@@ -442,7 +446,7 @@ namespace YOLOv5WithOpenCVForUnity
             return masks;// [n, 160, 160]
         }
 
-        public virtual void visualize(Mat image, Mat results, bool print_results = false, bool isRGB = false)
+        public virtual void Visualize(Mat image, Mat results, bool print_results = false, bool isRGB = false)
         {
             if (image.IsDisposed)
                 return;
@@ -450,7 +454,7 @@ namespace YOLOv5WithOpenCVForUnity
             if (results.empty() || results.cols() < 6)
                 return;
 
-            DetectionData[] data = getData(results);
+            DetectionData[] data = GetData(results);
 
             foreach (var d in data.Reverse())
             {
@@ -466,7 +470,7 @@ namespace YOLOv5WithOpenCVForUnity
 
                 Imgproc.rectangle(image, new Point(left, top), new Point(right, bottom), color, 2);
 
-                string label = $"{getClassLabel(classId)}, {conf:F2}";
+                string label = $"{GetClassLabel(classId)}, {conf:F2}";
 
                 int[] baseLine = new int[1];
                 Size labelSize = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, 1, baseLine);
@@ -485,7 +489,7 @@ namespace YOLOv5WithOpenCVForUnity
                 for (int i = 0; i < data.Length; ++i)
                 {
                     var d = data[i];
-                    string label = getClassLabel(d.cls);
+                    string label = GetClassLabel(d.cls);
 
                     sb.AppendFormat("-----------object {0}-----------", i + 1);
                     sb.AppendLine();
@@ -501,7 +505,7 @@ namespace YOLOv5WithOpenCVForUnity
             }
         }
 
-        public virtual void visualize_mask(Mat image, Mat det, Mat masks, float alpha = 0.5f, bool isRGB = false)
+        public virtual void VisualizeMask(Mat image, Mat det, Mat masks, float alpha = 0.5f, bool isRGB = false)
         {
             if (image.IsDisposed)
                 return;
@@ -576,7 +580,7 @@ namespace YOLOv5WithOpenCVForUnity
             }
         }
 
-        public virtual void dispose()
+        public virtual void Dispose()
         {
             if (segmentation_net != null)
                 segmentation_net.Dispose();
@@ -636,7 +640,7 @@ namespace YOLOv5WithOpenCVForUnity
             colorMat = null;
         }
 
-        protected virtual List<string> readClassNames(string filename)
+        protected virtual List<string> ReadClassNames(string filename)
         {
             List<string> classNames = new List<string>();
 
@@ -666,7 +670,8 @@ namespace YOLOv5WithOpenCVForUnity
         }
 
 
-        [StructLayout(LayoutKind.Sequential)]
+        [Serializable]
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public readonly struct DetectionData
         {
             public readonly float x1;
@@ -676,8 +681,11 @@ namespace YOLOv5WithOpenCVForUnity
             public readonly float conf;
             public readonly float cls;
 
-            // sizeof(ClassificationData)
-            public const int Size = 6 * sizeof(float);
+            // Count of elements
+            public const int ELEMENT_COUNT = 6;
+
+            // sizeof(DetectionData)
+            public const int DATA_SIZE = ELEMENT_COUNT * sizeof(float);
 
             public DetectionData(int x1, int y1, int x2, int y2, float conf, int cls)
             {
@@ -691,11 +699,13 @@ namespace YOLOv5WithOpenCVForUnity
 
             public override string ToString()
             {
-                return "x1:" + x1.ToString() + " y1:" + y1.ToString() + "x2:" + x2.ToString() + " y2:" + y2.ToString() + " conf:" + conf.ToString() + "  cls:" + cls.ToString();
+                StringBuilder sb = new StringBuilder(128);
+                sb.AppendFormat("x1:{0} y1:{1} x2:{2} y2:{3} conf:{4} cls:{5}", x1, y1, x2, y2, conf, cls);
+                return sb.ToString();
             }
         };
 
-        public virtual DetectionData[] getData(Mat results)
+        public virtual DetectionData[] GetData(Mat results)
         {
             if (results.empty())
                 return new DetectionData[0];
@@ -706,7 +716,7 @@ namespace YOLOv5WithOpenCVForUnity
             return dst;
         }
 
-        public virtual string getClassLabel(float id)
+        public virtual string GetClassLabel(float id)
         {
             int classId = (int)id;
             string className = string.Empty;

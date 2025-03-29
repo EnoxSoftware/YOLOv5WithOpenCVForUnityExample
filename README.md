@@ -1,13 +1,14 @@
 # YOLOv5 With OpenCVForUnity Example
 - An example of using OpenCV dnn module with YOLOv5. [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
-- This example can also work for [YOLOv6](https://github.com/meituan/YOLOv6) models, which has the same input/output shapes as the YOLOv5 model.
+- This example can also work for [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7) models, which has the same input/output shapes as the YOLOv5 model.
 
+![YOLOv5_output_shapes.png](YOLOv5_output_shapes.png) 
 
 ## Environment
 - Windows / Mac / Linux / WebGL / Android / iOS
 - Unity >= 2021.3.35f1+
 - Scripting backend MONO / IL2CPP
-- [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.6.4+
+- [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.6.5+
 
 
 ## Setup

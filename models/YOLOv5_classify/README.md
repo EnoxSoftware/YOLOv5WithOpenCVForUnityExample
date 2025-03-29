@@ -1,12 +1,6 @@
-# YOLOv5 classification models
+# YOLOv5 models
 
-https://github.com/ultralytics/yolov5
+Source repository url: https://github.com/ultralytics/yolov5
 
-Export YOLOv5_-cls model to ONNX:
+Please read the contents of the LICENSE file located directly under each folder before using the model. The license of the source model itself is subject to the license of the provider repository.
 
-```
-# @title Export to ONNX models (classification)
-!python export.py --weights yolov5n-cls.pt --include onnx --imgsz 224 224 --simplify
-#!python export.py --weights yolov5s-cls.pt --include onnx --imgsz 224 224 --simplify
-#!python export.py --weights yolov5m-cls.pt --include onnx --imgsz 224 224 --simplify
-```

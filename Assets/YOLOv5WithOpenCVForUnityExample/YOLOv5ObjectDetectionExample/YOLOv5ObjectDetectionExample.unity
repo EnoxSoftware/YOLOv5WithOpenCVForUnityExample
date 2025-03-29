@@ -937,12 +937,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _requestedSource2MatHelperClassName: 2
-  _currentSource2MatHelperClassCategory: 1
+  _currentSource2MatHelperClassInterfaces: 2
   _requestedDeviceName: 
   _requestedWidth: 640
   _requestedHeight: 480
   _requestedIsFrontFacing: 0
   _requestedFPS: 30
+  _requestedMatUpdateFPS: 30
   _requestedVideoFilePath: YOLOv5WithOpenCVForUnityExample/TestVideos/pexels-taryn-elliott-3770033-960x540-25fps.mp4
   _loop: 1
   _requestedImageFilePath: 

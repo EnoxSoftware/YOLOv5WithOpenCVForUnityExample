@@ -1,12 +1,6 @@
-# YOLOv5 instance segmentation models
+# YOLOv5 models
 
-https://github.com/ultralytics/yolov5
+Source repository url: https://github.com/ultralytics/yolov5
 
-Export YOLOv5_-seg model to ONNX:
+Please read the contents of the LICENSE file located directly under each folder before using the model. The license of the source model itself is subject to the license of the provider repository.
 
-```
-# @title Export to ONNX models (instance segmentation)
-!python export.py --weights yolov5n-seg.pt --include onnx --simplify
-#!python export.py --weights yolov5s-seg.pt --include onnx --simplify
-#!python export.py --weights yolov5m-seg.pt --include onnx  --simplify
-```
