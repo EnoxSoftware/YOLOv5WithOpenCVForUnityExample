@@ -1,3 +1,5 @@
+#if !UNITY_WSA_10_0
+
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.DnnModule;
 using OpenCVForUnity.ImgprocModule;
@@ -18,7 +20,7 @@ namespace YOLOv5WithOpenCVForUnity
     /// https://github.com/ultralytics/yolov5/blob/master/detect.py
     /// https://github.com/ultralytics/yolov5/blob/master/utils/general.py
     /// </summary>
-    public class YOLOv5ObjectDetector : IDisposable
+    public class YOLOv5ObjectDetector
     {
         Size input_size;
         float conf_threshold;
@@ -495,3 +497,4 @@ namespace YOLOv5WithOpenCVForUnity
         }
     }
 }
+#endif

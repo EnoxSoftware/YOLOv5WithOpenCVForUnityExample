@@ -1,3 +1,5 @@
+#if !UNITY_WSA_10_0
+
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.DnnModule;
 using OpenCVForUnity.ImgprocModule;
@@ -16,7 +18,7 @@ namespace YOLOv5WithOpenCVForUnity
     /// Referring to https://github.com/ultralytics/yolov5.
     /// https://github.com/ultralytics/yolov5/blob/master/classify/predict.py
     /// </summary>
-    public class YOLOv5ClassPredictor : IDisposable
+    public class YOLOv5ClassPredictor
     {
         Size input_size;
         int backend;
@@ -346,3 +348,4 @@ namespace YOLOv5WithOpenCVForUnity
         }
     }
 }
+#endif
