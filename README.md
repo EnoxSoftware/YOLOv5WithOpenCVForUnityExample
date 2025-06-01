@@ -20,10 +20,17 @@
 1. Build and Deploy.
 
 
-## Export YOLOv5 model to ONNX
-1. [YOLOv5_export_to_OpenCVDNN_ONNX.ipynb](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5/YOLOv5_export_to_OpenCVDNN_ONNX.ipynb)
-1. [YOLOv5_segment_export_to_OpenCVDNN_ONNX.ipynb](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5_segment/YOLOv5_segment_export_to_OpenCVDNN_ONNX.ipynb)
-1. [YOLOv5_classify_export_to_OpenCVDNN_ONNX.ipynb](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5_classify/YOLOv5_classify_export_to_OpenCVDNN_ONNX.ipynb)
+## Training from custom data and export to ONNX
+1. [YOLOv5_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5/)
+1. [YOLOv5_segment_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5_segment/)
+1. [YOLOv5_classify_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5_classify/)
+1. [YOLOv6_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv6/)
+1. [YOLOv7_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv7/)
+
+
+## Tutorials
+1. [How to Train YOLO v5 on a Custom Dataset](https://www.youtube.com/watch?v=MdF6x6ZmLAY)
+2. [Example of custom training for dice roll detection](https://qiita.com/DiNOV-Tokyo/items/1333ff4a6d9b4b5b79c0)
 
 
 ## Works with Multi-Object Tracking (MOT)
@@ -35,8 +42,4 @@
 ![screenshot02.jpg](screenshot02.jpg) 
 ![screenshot03.jpg](screenshot03.jpg) 
 
-
-## Tutorials
-1. [How to Train YOLO v5 on a Custom Dataset](https://www.youtube.com/watch?v=MdF6x6ZmLAY)
-2. [Example of custom training for dice roll detection](https://qiita.com/DiNOV-Tokyo/items/1333ff4a6d9b4b5b79c0)
 
