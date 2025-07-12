@@ -6,8 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
-using OpenCVForUnity.UnityUtils;
-using OpenCVForUnity.UnityUtils.Helper;
+using OpenCVForUnity.UnityIntegration;
+using OpenCVForUnity.UnityIntegration.Helper.Source2Mat;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -83,7 +83,7 @@ namespace YOLOv5WithOpenCVForUnityExample
             _fpsMonitor = GetComponent<FpsMonitor>();
 
             _multiSource2MatHelper = gameObject.GetComponent<MultiSource2MatHelper>();
-            _multiSource2MatHelper.outputColorFormat = Source2MatHelperColorFormat.RGBA;
+            _multiSource2MatHelper.OutputColorFormat = Source2MatHelperColorFormat.RGBA;
 
             // Update GUI state
 #if !UNITY_WEBGL || UNITY_EDITOR
@@ -95,21 +95,21 @@ namespace YOLOv5WithOpenCVForUnityExample
 
             // Asynchronously retrieves the readable file path from the StreamingAssets directory.
             if (_fpsMonitor != null)
-                _fpsMonitor.consoleText = "Preparing file access...";
+                _fpsMonitor.ConsoleText = "Preparing file access...";
 
             if (!string.IsNullOrEmpty(_classes))
             {
-                _classes_filepath = await Utils.getFilePathAsyncTask(_classes, cancellationToken: _cts.Token);
+                _classes_filepath = await OpenCVEnv.GetFilePathTaskAsync(_classes, cancellationToken: _cts.Token);
                 if (string.IsNullOrEmpty(_classes_filepath)) Debug.Log("The file:" + _classes + " did not exist.");
             }
             if (!string.IsNullOrEmpty(_model))
             {
-                _model_filepath = await Utils.getFilePathAsyncTask(_model, cancellationToken: _cts.Token);
+                _model_filepath = await OpenCVEnv.GetFilePathTaskAsync(_model, cancellationToken: _cts.Token);
                 if (string.IsNullOrEmpty(_model_filepath)) Debug.Log("The file:" + _model + " did not exist.");
             }
 
             if (_fpsMonitor != null)
-                _fpsMonitor.consoleText = "";
+                _fpsMonitor.ConsoleText = "";
 
             Run();
         }
@@ -118,7 +118,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         protected virtual void Run()
         {
             //if true, The error log of the Native side OpenCV will be displayed on the Unity Editor Console.
-            Utils.setDebugMode(true);
+            OpenCVDebug.SetDebugMode(true);
 
 
             if (string.IsNullOrEmpty(_model_filepath))
@@ -143,7 +143,7 @@ namespace YOLOv5WithOpenCVForUnityExample
             Mat rgbaMat = _multiSource2MatHelper.GetMat();
 
             _texture = new Texture2D(rgbaMat.cols(), rgbaMat.rows(), TextureFormat.RGBA32, false);
-            Utils.matToTexture2D(rgbaMat, _texture);
+            OpenCVMatUtils.MatToTexture2D(rgbaMat, _texture);
 
             _resultPreview.texture = _texture;
             _resultPreview.GetComponent<AspectRatioFitter>().aspectRatio = (float)_texture.width / _texture.height;
@@ -188,7 +188,7 @@ namespace YOLOv5WithOpenCVForUnityExample
 
             if (_fpsMonitor != null)
             {
-                _fpsMonitor.consoleText = "ErrorCode: " + errorCode + ":" + message;
+                _fpsMonitor.ConsoleText = "ErrorCode: " + errorCode + ":" + message;
             }
         }
 
@@ -268,7 +268,7 @@ namespace YOLOv5WithOpenCVForUnityExample
                     }
                 }
 
-                Utils.matToTexture2D(rgbaMat, _texture);
+                OpenCVMatUtils.MatToTexture2D(rgbaMat, _texture);
             }
         }
 
@@ -281,7 +281,7 @@ namespace YOLOv5WithOpenCVForUnityExample
 
             _objectDetector?.Dispose();
 
-            Utils.setDebugMode(false);
+            OpenCVDebug.SetDebugMode(false);
 
             _cts?.Dispose();
         }
@@ -323,7 +323,7 @@ namespace YOLOv5WithOpenCVForUnityExample
         /// </summary>
         public virtual void OnChangeCameraButtonClick()
         {
-            _multiSource2MatHelper.requestedIsFrontFacing = !_multiSource2MatHelper.requestedIsFrontFacing;
+            _multiSource2MatHelper.RequestedIsFrontFacing = !_multiSource2MatHelper.RequestedIsFrontFacing;
         }
 
         /// <summary>
