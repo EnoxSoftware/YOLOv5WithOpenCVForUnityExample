@@ -1,24 +1,18 @@
 # YOLOv5 With OpenCVForUnity Example
+
+> **Notice:** The YOLOv5 With OpenCVForUnity Example has been integrated into the **[OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR)** package.
+>
+> The example files are no longer distributed from this repository.
+> The repository is now maintained as a distribution repository for **model files used by the examples**.
+>
+> The model files in this repository are **pretrained ONNX models distributed by [Ultralytics](https://github.com/ultralytics/ultralytics)**. These files are redistributed without modification under the applicable Ultralytics licenses. Please check the applicable license before using the models in your own applications.
+>
+> If you are looking for the YOLOv5 example itself, please use the examples included with OpenCVForUnity.
+
 - An example of using OpenCV dnn module with YOLOv5. [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
 - This example can also work for [YOLOv6](https://github.com/meituan/YOLOv6), [YOLOv7](https://github.com/WongKinYiu/yolov7) models, which has the same input/output shapes as the YOLOv5 model.
 
 ![YOLOv5_output_shapes.png](YOLOv5_output_shapes.png) 
-
-## Environment
-- Windows / Mac / Linux / WebGL / Android / iOS
-- Unity >= 2021.3.45f2+
-- Scripting backend MONO / IL2CPP
-- [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 3.0.3+
-
-
-## Setup
-1. Download the latest release unitypackage. [YOLOv5WithOpenCVForUnityExample.unitypackage](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/releases)
-1. Create a new project. (YOLOv5WithOpenCVForUnityExample)
-1. Import OpenCVForUnity.
-1. Import the YOLOv5WithOpenCVForUnityExample.unitypackage.
-1. Add the "Assets/YOLOv5WithOpenCVForUnityExample/*.unity" files to the "Scenes In Build" list in the "Build Settings" window.
-1. Build and Deploy.
-
 
 ## Training from custom data and export to ONNX
 1. [YOLOv5_export_to_OpenCVDNN_ONNX](https://github.com/EnoxSoftware/YOLOv5WithOpenCVForUnityExample/tree/master/models/YOLOv5/)
@@ -41,5 +35,4 @@
 ![screenshot01.jpg](screenshot01.jpg) 
 ![screenshot02.jpg](screenshot02.jpg) 
 ![screenshot03.jpg](screenshot03.jpg) 
-
 
